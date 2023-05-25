@@ -1,0 +1,78 @@
+#include <cuda.h>
+#include <iostream>
+
+__global__ void matmul(int* A, int* B, int* C, int N) {
+    int Row = blockIdx.y*blockDim.y+threadIdx.y;
+    int Col = blockIdx.x*blockDim.x+threadIdx.x;
+    if (Row < N && Col < N) {
+        int Pvalue = 0;
+        for (int k = 0; k < N; k++) {
+            Pvalue += A[Row*N+k] * B[k*N+Col];
+        }
+        C[Row*N+Col] = Pvalue;
+    }
+}
+
+int main() {
+    int N = 2;
+    int size = N * N * sizeof(int);
+    int A[N][N], B[N][N], C[N][N];
+    int *dev_A, *dev_B, *dev_C;
+    cudaMalloc((void**)&dev_A, size);
+    cudaMalloc((void**)&dev_B, size);
+    cudaMalloc((void**)&dev_C, size);
+
+
+    // Input matrices A and B from the user
+    std::cout << "Enter matrix A (2x2):\n";
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            std::cin >> A[i][j];
+        }
+    }
+
+    std::cout << "Enter matrix B (2x2):\n";
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            std::cin >> B[i][j];
+        }
+    }
+
+    cudaMemcpy(dev_A, A, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_B, B, size, cudaMemcpyHostToDevice);
+
+    //dim3 dimBlock(2, 2);
+    //dim3 dimGrid(N/dimBlock.x, N/dimBlock.y);
+
+    dim3 blockDims(N, N);
+    dim3 gridDims(1, 1);
+
+    //matmul<<<dimGrid, dimBlock>>>(dev_A, dev_B, dev_C, N);
+    matmul<<<gridDims, blockDims>>>(dev_A, dev_B, dev_C, N);
+
+    //cudaMemcpy(C, dev_C, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(C, dev_C, N * N * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Print the result
+    std::cout << "Matrix C = A * B:\n";
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            std::cout << C[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+
+    // Free memory
+    cudaFree(dev_A);
+    cudaFree(dev_B);
+    cudaFree(dev_C);
+    // cudaFreeHost(A);
+    // cudaFreeHost(B);
+    // cudaFreeHost(C);
+
+    return 0;
+}
+
+// sudo apt install nvidia-cuda-toolkit
+// nvcc cuda_matrix_addition.cu -o cuda_matrix_addition
